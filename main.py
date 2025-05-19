@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("6469274617:AAGxZ5U8SP5IcFjFnBRst7MHcI3Huf3_e04")
 
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name)[:100]

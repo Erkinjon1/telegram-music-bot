@@ -1,23 +1,26 @@
 import nest_asyncio
 nest_asyncio.apply()
 
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
-import yt_dlp
 import os
+import re
 from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import yt_dlp
+from dotenv import load_dotenv
 
-import logging
-logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
-import asyncio
-TOKEN = os.getenv("TOKEN")  # Render.env orqali olamiz
+TOKEN = os.getenv("BOT_TOKEN")
 
-async def start(update: Update, context):
-    await update.message.reply_text("Salom! Men musiqa botiman. Qo‘shiq nomini yuboring.")
+def sanitize_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "", name)[:100]
 
-async def search_music(update: Update, context):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Salom! Men musiqa botiman. Qo‘shiq nomini yuboring 🎵")
+
+async def search_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text
-    await update.message.reply_text(f"🔎 '{query}' qidirilmoqda...")
+    await update.message.reply_text(f"🔍 Qidirilmoqda: '{query}'...")
 
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -33,34 +36,40 @@ async def search_music(update: Update, context):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=True)
-            if 'entries' in info and len(info['entries']) > 0:
-                video = info['entries'][0]
-                title = video['title']
-                file_path = f"downloads/{title}.mp3"
 
-                if os.path.exists(file_path):
+            if 'entries' not in info or not info['entries']:
+                await update.message.reply_text("❌ Hech narsa topilmadi.")
+                return
+
+            video = info['entries'][0]
+            title = sanitize_filename(video['title'])
+            file_path = f"downloads/{title}.mp3"
+
+            if os.path.exists(file_path):
+                try:
                     with open(file_path, 'rb') as audio:
                         await context.bot.send_audio(
                             chat_id=update.effective_chat.id,
                             audio=audio,
                             title=title,
-                            performer=video.get('uploader', 'Topildi')
+                            performer=query
                         )
+                finally:
                     os.remove(file_path)
-                else:
-                    await update.message.reply_text("Kechirasiz, faylni topib bo‘lmadi.")
             else:
-                await update.message.reply_text("Kechirasiz, hech narsa topilmadi.")
+                await update.message.reply_text("❌ Kechirasiz, faylni yuklab bo‘lmadi.")
+
     except Exception as e:
-        await update.message.reply_text(f"Xatolik: {str(e)}")
+        await update.message.reply_text(f"⚠️ Xatolik: {str(e)}")
 
 def main():
-    if not os.path.exists("downloads"):
-        os.makedirs("downloads")
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_music))
-    application.run_polling()
+    if not os.path.exists('downloads'):
+        os.makedirs('downloads')
+
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_music))
+    app.run_polling()
 
 if __name__ == '__main__':
     main()

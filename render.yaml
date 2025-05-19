@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: telegram-music-bot
+    env: python
+    buildCommand: ""
+    startCommand: python bot.py
+    envVars:
+      - key: TOKEN
+        value: "6469274617:AAGxZ5U8SP5IcFjFnBRst7MHcI3Huf3_e04"
